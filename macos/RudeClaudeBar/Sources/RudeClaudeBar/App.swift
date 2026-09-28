@@ -21,21 +21,17 @@ struct RudeClaudeBar: App {
     }
 }
 
-/// "42 % · 12 %" for the 5-hour window and the week, with a question mark
-/// when a session is waiting for an answer.
+/// Only the 5-hour window, drawn by MenuIcon.
 struct MenuLabel: View {
     let overview: Overview?
     let failed: Bool
 
     var body: some View {
-        if let o = overview, o.limits.count == 2 {
-            let asking = o.sessions.contains { $0.state == "asking" }
-            let symbol = asking ? "questionmark.bubble.fill" : "gauge.with.dots.needle.33percent"
-            Text("\(Image(systemName: symbol)) \(percent(o.limits[0].used)) · \(percent(o.limits[1].used))")
+        if let five = overview?.limits.first {
+            let asking = overview?.sessions.contains { $0.state == "asking" } ?? false
+            Image(nsImage: MenuIcon.image(used: five.used, asking: asking))
         } else {
             Image(systemName: failed ? "exclamationmark.triangle" : "gauge.with.dots.needle.33percent")
         }
     }
-
-    private func percent(_ v: Double) -> String { "\(Int(v.rounded())) %" }
 }

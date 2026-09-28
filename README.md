@@ -20,8 +20,8 @@ l'abonnement, l'activité du jour et ce que fait Claude dans chaque session.
 >
 > - **dans le terminal**, le même tableau de bord que l'original : le jeton de
 >   Claude Code est lu dans le trousseau macOS ;
-> - **en widget de barre des menus**, une app native qui affiche les limites
->   en permanence et le tableau de bord complet au clic
+> - **en widget de barre des menus**, une app native qui affiche la limite de
+>   5 heures en permanence et le tableau de bord complet au clic
 >   ([voir plus bas](#widget-de-barre-des-menus-macos)).
 >
 > Le fonctionnement sous Linux est inchangé.
@@ -106,9 +106,9 @@ Touches : `r` pour rafraîchir, `q` pour quitter.
 
 ## Widget de barre des menus (macOS)
 
-Une app native affiche les deux limites dans la barre des menus : `42 % · 12 %`
-pour la fenêtre de 5 heures et la semaine, avec une bulle quand une session
-attend votre réponse. Un clic ouvre le tableau de bord complet, en mode sombre
+Une app native affiche dans la barre des menus le pourcentage consommé sur la
+fenêtre de 5 heures (`42 %`), précédé d'une bulle quand Claude vous pose une
+question et attend votre réponse. Un clic ouvre le tableau de bord complet, en mode sombre
 comme dans le terminal : anneaux, activité du jour, sessions, outils.
 
 Le menu **⋯** en haut du panneau regroupe « Rafraîchir » (⌘R), « Ouvrir au
