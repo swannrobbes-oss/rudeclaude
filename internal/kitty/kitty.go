@@ -28,8 +28,7 @@ func Supported(tty *os.File) bool {
 		if wait <= 0 {
 			break
 		}
-		fds := []unix.PollFd{{Fd: int32(tty.Fd()), Events: unix.POLLIN}}
-		if n, err := unix.Poll(fds, int(wait.Milliseconds())+1); err != nil || n == 0 {
+		if !waitReadable(int(tty.Fd()), wait) {
 			break
 		}
 		n, err := tty.Read(buf)

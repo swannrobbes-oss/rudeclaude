@@ -86,10 +86,18 @@ func credentialsPath() string {
 	return filepath.Join(home, ".claude", ".credentials.json")
 }
 
-func readToken() (string, error) {
+func readCredentialsFile() ([]byte, error) {
 	raw, err := os.ReadFile(credentialsPath())
 	if err != nil {
-		return "", fmt.Errorf("lecture des identifiants Claude Code : %w", err)
+		return nil, fmt.Errorf("lecture des identifiants Claude Code : %w", err)
+	}
+	return raw, nil
+}
+
+func readToken() (string, error) {
+	raw, err := readCredentials()
+	if err != nil {
+		return "", err
 	}
 	var c credentials
 	if err := json.Unmarshal(raw, &c); err != nil {

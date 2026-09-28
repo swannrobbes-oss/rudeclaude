@@ -33,8 +33,7 @@ l'abonnement, l'activité du jour et ce que fait Claude dans chaque session.
 
 ## Prérequis
 
-- **Linux.** macOS n'est pas encore pris en charge : Claude Code y range ses
-  identifiants dans le trousseau, que rudeclaude ne sait pas encore lire.
+- **Linux ou macOS.**
 - **Claude Code**, connecté avec un abonnement Claude (Pro ou Max).
 - **Go 1.27** ou plus récent, pour compiler.
 - Un terminal en couleurs 24 bits. Pour le rendu en images : un terminal qui
@@ -67,6 +66,7 @@ rudeclaude
 | `--render auto\|image\|text` | force le rendu (détecté automatiquement par défaut) |
 | `--demo` | données fictives, sans appel réseau ni lecture des journaux |
 | `--snapshot fichier.png` | exporte une image du tableau de bord, puis quitte |
+| `--json` | écrit le tableau de bord en JSON, puis quitte |
 | `--version` | affiche la version, puis quitte |
 
 Touches : `r` pour rafraîchir, `q` pour quitter.
@@ -79,22 +79,48 @@ Touches : `r` pour rafraîchir, `q` pour quitter.
 
 ![rudeclaude en mode texte (démo)](docs/capture-texte.png)
 
+### Barre des menus (macOS)
+
+Une petite app native affiche les deux limites dans la barre des menus
+(`42 % · 12 %`, avec une bulle quand une session attend votre réponse) et le
+tableau de bord complet au clic. Elle embarque le binaire rudeclaude et
+l'appelle toutes les 30 secondes ; le cache partagé limite toujours l'API à un
+appel par minute.
+
+Il faut les outils en ligne de commande de Xcode (`xcode-select --install`) et
+Go, puis :
+
+```bash
+macos/build.sh
+cp -R macos/build/RudeClaude.app /Applications/
+open /Applications/RudeClaude.app
+```
+
+La case « Ouvrir au démarrage » du panneau lance l'app à chaque ouverture de
+session.
+
 ## Confidentialité et sécurité
 
-rudeclaude ne lit que deux choses dans `~/.claude` (ou dans
-`$CLAUDE_CONFIG_DIR`) :
+rudeclaude ne lit que deux choses :
 
-1. **`.credentials.json`**, pour les limites d'usage. Le jeton OAuth de
-   Claude Code y est lu à chaque appel et envoyé **uniquement** à
-   `api.anthropic.com`. Il n'est jamais affiché, copié ni rafraîchi : s'il a
-   expiré, relancez `claude`.
-2. **`projects/**/*.jsonl`**, les journaux de Claude Code, pour l'activité et
+1. **Les identifiants de Claude Code**, pour les limites d'usage : le fichier
+   `.credentials.json` de `~/.claude` (ou de `$CLAUDE_CONFIG_DIR`) sous Linux,
+   l'entrée `Claude Code-credentials` du trousseau sous macOS. Le jeton OAuth
+   y est lu à chaque appel et envoyé **uniquement** à `api.anthropic.com`. Il
+   n'est jamais affiché, copié ni rafraîchi : s'il a expiré, relancez
+   `claude`.
+
+   Sous macOS, le trousseau demande l'autorisation au premier lancement
+   (l'accès passe par l'outil `security` du système) : choisissez
+   « Toujours autoriser » pour ne plus la voir.
+2. **`projects/**/*.jsonl`** dans `~/.claude`, les journaux de Claude Code, pour l'activité et
    les sessions. Seules les métadonnées sont exploitées : horodatage, projet,
    branche, modèle, compteurs de tokens et noms des outils. Le contenu des
    conversations n'est jamais interprété, stocké ni transmis.
 
 La dernière réponse de l'API d'usage est mise en cache dans
-`~/.cache/rudeclaude/usage.json` (sans le jeton), pour que plusieurs fenêtres
+`~/.cache/rudeclaude/usage.json` sous Linux et
+`~/Library/Caches/rudeclaude/usage.json` sous macOS (sans le jeton), pour que plusieurs fenêtres
 ouvertes n'appellent pas l'API plus d'une fois par minute au total.
 
 Attention : l'export `--snapshot` montre les noms de vos projets et de vos
@@ -116,12 +142,13 @@ branches.
 
 ```
 main.go                 options et choix du rendu
-internal/usage/         appel à l'API d'usage, jeton, cache partagé
+internal/usage/         appel à l'API d'usage, jeton (fichier ou trousseau), cache partagé
 internal/activity/      suivi des sessions dans les journaux de Claude Code
 internal/gfx/           dessin en images de la vue d'ensemble, police Inter
 internal/kitty/         protocole graphique de kitty
 internal/ui/            boucle du mode image, repli texte (Bubble Tea)
 internal/theme/         couleurs du mode texte
+macos/                  app de barre des menus (SwiftUI) et son script de build
 ```
 
 Les tests se lancent avec `go test ./...`.

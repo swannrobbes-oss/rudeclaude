@@ -19,6 +19,7 @@ func main() {
 	demo := flag.Bool("demo", false, "valeurs fictives, sans appeler l'API")
 	render := flag.String("render", "auto", "rendu : auto, image (protocole graphique de kitty) ou text")
 	snapshot := flag.String("snapshot", "", "écrit une image PNG du tableau de bord dans ce fichier, puis quitte")
+	asJSON := flag.Bool("json", false, "écrit le tableau de bord en JSON, puis quitte")
 	showVersion := flag.Bool("version", false, "affiche la version, puis quitte")
 	flag.Parse()
 
@@ -32,6 +33,11 @@ func main() {
 
 	if *snapshot != "" {
 		exit(ui.Snapshot(*snapshot, *demo))
+		return
+	}
+
+	if *asJSON {
+		exit(ui.JSON(os.Stdout, *interval, *demo))
 		return
 	}
 

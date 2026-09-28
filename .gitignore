@@ -3,3 +3,7 @@
 
 # Maquettes et captures locales (peuvent contenir des noms de projets)
 /maquettes/
+
+# App de barre des menus macOS
+/macos/build/
+/macos/RudeClaudeBar/.build/

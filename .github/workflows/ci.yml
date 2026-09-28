@@ -6,7 +6,10 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -20,3 +23,6 @@ jobs:
         run: go test ./...
       - name: Compilation
         run: go build -o rudeclaude .
+      - name: App de barre des menus
+        if: runner.os == 'macOS'
+        run: swift build --package-path macos/RudeClaudeBar
