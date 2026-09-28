@@ -13,6 +13,19 @@ l'abonnement, l'activité du jour et ce que fait Claude dans chaque session.
 > approuvé par Anthropic. « Claude » et « Claude Code » sont des marques
 > d'Anthropic.
 
+> **Portage macOS.** Ce dépôt est un fork de
+> [rudeops/rudeclaude](https://github.com/rudeops/rudeclaude), qui ne
+> fonctionnait que sous Linux. Il ajoute la prise en charge de macOS sous deux
+> formes :
+>
+> - **dans le terminal**, le même tableau de bord que l'original : le jeton de
+>   Claude Code est lu dans le trousseau macOS ;
+> - **en widget de barre des menus**, une app native qui affiche les limites
+>   en permanence et le tableau de bord complet au clic
+>   ([voir plus bas](#widget-de-barre-des-menus-macos)).
+>
+> Le fonctionnement sous Linux est inchangé.
+
 ## Ce qu'il affiche
 
 - **Limites** : le pourcentage consommé sur la fenêtre de 5 heures et sur la
@@ -35,24 +48,26 @@ l'abonnement, l'activité du jour et ce que fait Claude dans chaque session.
 
 - **Linux ou macOS.**
 - **Claude Code**, connecté avec un abonnement Claude (Pro ou Max).
-- **Go 1.27** ou plus récent, pour compiler.
+- **Go 1.27** ou plus récent, pour compiler (sous macOS : `brew install go`).
+- Pour le widget macOS : macOS 14 ou plus récent et les outils en ligne de
+  commande de Xcode (`xcode-select --install`). Xcode lui-même n'est pas
+  nécessaire.
 - Un terminal en couleurs 24 bits. Pour le rendu en images : un terminal qui
   supporte le [protocole graphique de kitty](https://sw.kovidgoyal.net/kitty/graphics-protocol/)
   (Ghostty, kitty, WezTerm, Konsole…).
 
 ## Installation
 
-```bash
-go install github.com/rudeops/rudeclaude@latest
-```
-
-Ou depuis les sources :
+Depuis les sources de ce fork :
 
 ```bash
-git clone https://github.com/rudeops/rudeclaude.git
+git clone -b macos https://github.com/swannrobbes-oss/rudeclaude.git
 cd rudeclaude
 go build -o rudeclaude .
 ```
+
+`go install github.com/rudeops/rudeclaude@latest` installe la version
+d'origine, sans le portage macOS.
 
 ## Utilisation
 
@@ -79,16 +94,31 @@ Touches : `r` pour rafraîchir, `q` pour quitter.
 
 ![rudeclaude en mode texte (démo)](docs/capture-texte.png)
 
-### Barre des menus (macOS)
+### Dans le terminal, sous macOS
 
-Une petite app native affiche les deux limites dans la barre des menus
-(`42 % · 12 %`, avec une bulle quand une session attend votre réponse) et le
-tableau de bord complet au clic. Elle embarque le binaire rudeclaude et
-l'appelle toutes les 30 secondes ; le cache partagé limite toujours l'API à un
-appel par minute.
+- **Rendu en images** dans Ghostty, kitty et WezTerm. Terminal.app, iTerm2 et
+  le terminal de VS Code passent automatiquement en rendu texte.
+- **Trousseau** : au premier lancement, macOS demande l'autorisation de lire
+  les identifiants de Claude Code. Choisissez « Toujours autoriser » pour ne
+  plus la voir.
+- Pour lancer `rudeclaude` depuis n'importe quel dossier : `go install .`, puis
+  ajoutez `~/go/bin` à votre `PATH`.
 
-Il faut les outils en ligne de commande de Xcode (`xcode-select --install`) et
-Go, puis :
+## Widget de barre des menus (macOS)
+
+Une app native affiche les deux limites dans la barre des menus : `42 % · 12 %`
+pour la fenêtre de 5 heures et la semaine, avec une bulle quand une session
+attend votre réponse. Un clic ouvre le tableau de bord complet, en mode sombre
+comme dans le terminal : anneaux, activité du jour, sessions, outils.
+
+Le menu **⋯** en haut du panneau regroupe « Rafraîchir » (⌘R), « Ouvrir au
+démarrage » et « Quitter » (⌘Q).
+
+L'app embarque le binaire rudeclaude et l'appelle toutes les 30 secondes avec
+`--json`. Le cache partagé limite toujours l'API à un appel par minute, même
+avec le terminal ouvert en parallèle.
+
+Compilation et installation :
 
 ```bash
 macos/build.sh
@@ -96,8 +126,9 @@ cp -R macos/build/RudeClaude.app /Applications/
 open /Applications/RudeClaude.app
 ```
 
-La case « Ouvrir au démarrage » du panneau lance l'app à chaque ouverture de
-session.
+Cochez « Ouvrir au démarrage » depuis la copie installée dans `/Applications`,
+pas depuis `macos/build/`. Après une mise à jour du code, relancez
+`macos/build.sh` et recopiez l'app.
 
 ## Confidentialité et sécurité
 
@@ -113,18 +144,19 @@ rudeclaude ne lit que deux choses :
    Sous macOS, le trousseau demande l'autorisation au premier lancement
    (l'accès passe par l'outil `security` du système) : choisissez
    « Toujours autoriser » pour ne plus la voir.
-2. **`projects/**/*.jsonl`** dans `~/.claude`, les journaux de Claude Code, pour l'activité et
-   les sessions. Seules les métadonnées sont exploitées : horodatage, projet,
+2. **`projects/**/*.jsonl`** dans `~/.claude`, les journaux de Claude Code,
+   pour l'activité et les sessions. Seules les métadonnées sont exploitées : horodatage, projet,
    branche, modèle, compteurs de tokens et noms des outils. Le contenu des
    conversations n'est jamais interprété, stocké ni transmis.
 
-La dernière réponse de l'API d'usage est mise en cache dans
+La dernière réponse de l'API d'usage est mise en cache, sans le jeton, dans
 `~/.cache/rudeclaude/usage.json` sous Linux et
-`~/Library/Caches/rudeclaude/usage.json` sous macOS (sans le jeton), pour que plusieurs fenêtres
-ouvertes n'appellent pas l'API plus d'une fois par minute au total.
+`~/Library/Caches/rudeclaude/usage.json` sous macOS. Plusieurs fenêtres ou le
+widget ouverts en même temps n'appellent ainsi pas l'API plus d'une fois par
+minute au total.
 
-Attention : l'export `--snapshot` montre les noms de vos projets et de vos
-branches.
+Attention : les sorties `--snapshot` et `--json` montrent les noms de vos
+projets et de vos branches.
 
 ## Limites connues
 
@@ -137,6 +169,8 @@ branches.
   laisse pas de trace dans les journaux : la session reste affichée comme
   « exécute une commande », avec la durée écoulée au-delà de 2 minutes.
 - L'interface est en français.
+- Le widget macOS est signé localement (sans compte développeur Apple) : il
+  est prévu pour être compilé sur la machine où il tourne, pas distribué.
 
 ## Structure du code
 
@@ -148,7 +182,7 @@ internal/gfx/           dessin en images de la vue d'ensemble, police Inter
 internal/kitty/         protocole graphique de kitty
 internal/ui/            boucle du mode image, repli texte (Bubble Tea)
 internal/theme/         couleurs du mode texte
-macos/                  app de barre des menus (SwiftUI) et son script de build
+macos/                  widget de barre des menus (SwiftUI) et son script de build
 ```
 
 Les tests se lancent avec `go test ./...`.
