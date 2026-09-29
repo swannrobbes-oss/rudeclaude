@@ -120,8 +120,15 @@ Claude travaille, ligne jaune encadrée quand il attend votre réponse, grisée
 une fois inactive. La jauge de contexte reste grise jusqu'à 70 % puis passe à
 l'orange et au rouge ; le survol affiche le détail complet.
 
+Quand Claude vous pose une question, un bandeau jaune pulsant « Claude attend
+ta réponse » apparaît en haut du panneau avec le nom du projet, le widget de
+bureau s'entoure d'un contour jaune pulsant, et un son discret (Tink) est joué
+une fois, quand la question est détectée (au plus 30 secondes après son
+arrivée).
+
 Le menu **⋯** en haut du panneau regroupe « Rafraîchir » (⌘R), « Widget sur le
-bureau », « Ouvrir au démarrage » et « Quitter » (⌘Q).
+bureau », « Son quand Claude attend », « Ouvrir au démarrage », un lien vers
+RudeOps et « Quitter » (⌘Q).
 
 « Widget sur le bureau » épingle le tableau de bord sur le bureau, en format
 paysage, en bandes : les anneaux face à la journée et à la répartition par

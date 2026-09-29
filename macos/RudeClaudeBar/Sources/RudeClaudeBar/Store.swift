@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 struct Overview: Decodable {
     struct Limit: Decodable {
@@ -70,8 +70,13 @@ struct Overview: Decodable {
 final class Store: ObservableObject {
     @Published private(set) var overview: Overview?
     @Published private(set) var error: String?
+    /// Only for refreshes asked by the user: the background ones are too
+    /// frequent to show a spinner.
     @Published private(set) var loading = false
 
+    /// Sessions waiting for an answer, by project and branch.
+    private(set) var asking: [Overview.Session] = []
+    private var running = false
     private var timer: Timer?
 
     init() {
@@ -82,25 +87,41 @@ final class Store: ObservableObject {
     }
 
     func refresh(force: Bool = false) {
-        guard !loading else { return }
+        guard !running else { return }
         guard let binary = Self.binary() else {
             error = "binaire rudeclaude introuvable"
             return
         }
-        loading = true
+        running = true
+        loading = force
         let args = ["--json", "--interval", force ? "30s" : "1m"]
         Task {
-            defer { loading = false }
+            defer { running = false; loading = false }
             do {
                 let data = try await Self.run(binary, args)
                 let decoder = JSONDecoder()
                 decoder.keyDecodingStrategy = .convertFromSnakeCase
-                overview = try decoder.decode(Overview.self, from: data)
+                let o = try decoder.decode(Overview.self, from: data)
+                chimeIfNewlyAsking(o)
+                overview = o
                 error = nil
             } catch {
                 self.error = error.localizedDescription
             }
         }
+    }
+
+    /// Plays a discreet sound when a session starts waiting for an answer,
+    /// once, and not for the sessions already waiting at launch.
+    private func chimeIfNewlyAsking(_ o: Overview) {
+        let now = o.sessions.filter { $0.state == "asking" }
+        let key = { (s: Overview.Session) in "\(s.project)|\(s.detail)" }
+        let before = Set(asking.map(key))
+        let fresh = now.contains { !before.contains(key($0)) }
+        if fresh, overview != nil, Chime.enabled {
+            Chime.play()
+        }
+        asking = now
     }
 
     /// The copy inside the app bundle first, then the usual install paths
@@ -141,4 +162,25 @@ final class Store: ObservableObject {
 struct RunError: LocalizedError {
     let message: String
     var errorDescription: String? { message }
+}
+
+/// The sound played when Claude waits for an answer: the system's Tink, at
+/// low volume.
+enum Chime {
+    static let key = "askSound"
+
+    static var enabled: Bool {
+        UserDefaults.standard.object(forKey: key) as? Bool ?? true
+    }
+
+    @MainActor private static let sound: NSSound? = {
+        let sound = NSSound(named: "Tink")
+        sound?.volume = 0.35
+        return sound
+    }()
+
+    @MainActor static func play() {
+        sound?.stop()
+        sound?.play()
+    }
 }

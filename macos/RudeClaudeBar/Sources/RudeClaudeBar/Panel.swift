@@ -28,6 +28,10 @@ struct Panel: View {
                 if let alert = o.alert ?? store.error {
                     Text(alert).font(.callout).foregroundStyle(Color.rudeRed)
                 }
+                let asking = o.sessions.filter { $0.state == "asking" }
+                if !asking.isEmpty {
+                    AskingBanner(sessions: asking)
+                }
                 if landscape {
                     band {
                         rings(o)
@@ -65,7 +69,6 @@ struct Panel: View {
             } else {
                 ProgressView().frame(maxWidth: .infinity)
             }
-            Signature()
         }
         .padding(18)
         .frame(width: landscape ? 800 : 400)
@@ -93,7 +96,11 @@ struct Panel: View {
                 .keyboardShortcut("r")
                 .disabled(store.loading)
             DesktopToggle()
+            SoundToggle()
             LaunchAtLogin()
+            Divider()
+            // Same signature as the terminal dashboard, linking to the newsletter.
+            Link("Propulsé par RudeOps · rudeops.com", destination: URL(string: "https://www.rudeops.com")!)
             Divider()
             Button("Quitter rudeclaude") { NSApplication.shared.terminate(nil) }
                 .keyboardShortcut("q")
@@ -215,23 +222,6 @@ struct Panel: View {
                     Text(credits).font(.caption).foregroundStyle(.secondary)
                 }
             }
-        }
-    }
-}
-
-/// Same signature as the terminal dashboard, linking to the newsletter.
-struct Signature: View {
-    var body: some View {
-        Link(destination: URL(string: "https://www.rudeops.com")!) {
-            (Text("propulsé par ").fontWeight(.light).foregroundStyle(.secondary)
-                + Text("RudeOps").fontWeight(.medium).foregroundStyle(Color.rudeYellow)
-                + Text("   ·   rudeops.com").foregroundStyle(.secondary))
-                .font(.caption)
-        }
-        .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
-        .onHover { inside in
-            if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
         }
     }
 }
@@ -496,6 +486,52 @@ struct DesktopToggle: View {
 
     var body: some View {
         Toggle("Widget sur le bureau", isOn: $widget.visible)
+    }
+}
+
+struct SoundToggle: View {
+    @AppStorage(Chime.key) private var enabled = true
+
+    var body: some View {
+        Toggle("Son quand Claude attend", isOn: $enabled)
+    }
+}
+
+/// Shown while Claude waits for an answer, pulsing so that it catches the
+/// eye from across the desk.
+struct AskingBanner: View {
+    let sessions: [Overview.Session]
+    @State private var bright = false
+
+    private var projects: String {
+        sessions.map(\.project).joined(separator: ", ")
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "bubble.left.and.exclamationmark.bubble.right.fill")
+                .font(.title3)
+                .foregroundStyle(Color.rudeYellow)
+                .symbolEffect(.pulse, options: .repeating)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(sessions.count > 1 ? "Claude attend \(sessions.count) réponses" : "Claude attend ta réponse")
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(Color.rudeYellow)
+                Text(projects).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(Color.rudeYellow.opacity(bright ? 0.2 : 0.08))
+                .overlay(RoundedRectangle(cornerRadius: 10)
+                    .strokeBorder(Color.rudeYellow.opacity(bright ? 0.8 : 0.35), lineWidth: 1.5))
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { bright = true }
+        }
     }
 }
 

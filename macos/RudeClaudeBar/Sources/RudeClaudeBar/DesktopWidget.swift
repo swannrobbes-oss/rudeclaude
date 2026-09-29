@@ -86,13 +86,36 @@ private struct WidgetCard: View {
     @ObservedObject var store: Store
     let sized: (CGSize) -> Void
 
+    private var asking: Bool {
+        store.overview?.sessions.contains { $0.state == "asking" } ?? false
+    }
+
     var body: some View {
         Panel(store: store, landscape: true)
             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.08)))
+            .overlay {
+                if asking {
+                    AskingOutline()
+                } else {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(.white.opacity(0.08))
+                }
+            }
             .environment(\.colorScheme, .dark)
             .fixedSize()
             .onGeometryChange(for: CGSize.self, of: \.size, action: sized)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+/// Pulsing yellow outline around the widget while Claude waits for an answer.
+private struct AskingOutline: View {
+    @State private var bright = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 18, style: .continuous)
+            .strokeBorder(Color.rudeYellow.opacity(bright ? 1 : 0.35), lineWidth: 3)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { bright = true }
+            }
     }
 }
