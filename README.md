@@ -21,7 +21,8 @@ l'abonnement, l'activité du jour et ce que fait Claude dans chaque session.
 > - **dans le terminal**, le même tableau de bord que l'original : le jeton de
 >   Claude Code est lu dans le trousseau macOS ;
 > - **en widget de barre des menus**, une app native qui affiche la limite de
->   5 heures en permanence et le tableau de bord complet au clic
+>   5 heures en permanence et le tableau de bord complet au clic, et peut
+>   aussi l'épingler sur le bureau
 >   ([voir plus bas](#widget-de-barre-des-menus-macos)).
 >
 > Le fonctionnement sous Linux est inchangé.
@@ -111,8 +112,25 @@ fenêtre de 5 heures (`42 %`), précédé d'une bulle quand Claude vous pose une
 question et attend votre réponse. Un clic ouvre le tableau de bord complet, en mode sombre
 comme dans le terminal : anneaux, activité du jour, sessions, outils.
 
-Le menu **⋯** en haut du panneau regroupe « Rafraîchir » (⌘R), « Ouvrir au
-démarrage » et « Quitter » (⌘Q).
+Chaque session suit le code couleur du terminal : point vert qui pulse quand
+Claude travaille, ligne jaune encadrée quand il attend votre réponse, grisée
+une fois inactive. La jauge de contexte reste grise jusqu'à 70 % puis passe à
+l'orange et au rouge ; le survol affiche le détail complet.
+
+Le menu **⋯** en haut du panneau regroupe « Rafraîchir » (⌘R), « Widget sur le
+bureau », « Ouvrir au démarrage » et « Quitter » (⌘Q).
+
+« Widget sur le bureau » épingle le tableau de bord sur le bureau, en format
+paysage : anneaux, aujourd'hui et activité à gauche, sessions, RTK et outils à
+droite. Il reste au-dessus du fond d'écran et des icônes, sous toutes les autres
+fenêtres, sur tous les bureaux. Faites-le glisser où vous voulez ; sa position
+est retenue. Pour le voir quand des fenêtres le recouvrent, affichez le bureau
+(fn + F11).
+
+Si rtk (Rust Token Killer) est installé, une section **RTK**
+affiche les tokens économisés aujourd'hui et au total, la moyenne économisée et
+un histogramme des 7 derniers jours (lus avec `rtk gain --daily --format json`).
+Sans rtk, la section n'apparaît pas.
 
 L'app embarque le binaire rudeclaude et l'appelle toutes les 30 secondes avec
 `--json`. Le cache partagé limite toujours l'API à un appel par minute, même
@@ -178,11 +196,12 @@ projets et de vos branches.
 main.go                 options et choix du rendu
 internal/usage/         appel à l'API d'usage, jeton (fichier ou trousseau), cache partagé
 internal/activity/      suivi des sessions dans les journaux de Claude Code
+internal/rtk/           tokens économisés par rtk (rtk gain), pour le widget
 internal/gfx/           dessin en images de la vue d'ensemble, police Inter
 internal/kitty/         protocole graphique de kitty
 internal/ui/            boucle du mode image, repli texte (Bubble Tea)
 internal/theme/         couleurs du mode texte
-macos/                  widget de barre des menus (SwiftUI) et son script de build
+macos/                  widget de barre des menus et de bureau (SwiftUI) et son script de build
 ```
 
 Les tests se lancent avec `go test ./...`.

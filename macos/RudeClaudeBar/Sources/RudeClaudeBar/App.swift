@@ -2,12 +2,16 @@ import SwiftUI
 
 @main
 struct RudeClaudeBar: App {
-    @StateObject private var store = Store()
+    @StateObject private var store: Store
 
     init() {
         // The panel is designed for a dark background, like the terminal
         // dashboard, whatever the system appearance.
         NSApplication.shared.appearance = NSAppearance(named: .darkAqua)
+
+        let store = Store()
+        _store = StateObject(wrappedValue: store)
+        Task { @MainActor in DesktopWidget.shared.attach(store) }
     }
 
     var body: some Scene {

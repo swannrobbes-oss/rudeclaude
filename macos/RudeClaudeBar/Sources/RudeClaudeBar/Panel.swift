@@ -16,6 +16,9 @@ extension Color {
 
 struct Panel: View {
     @ObservedObject var store: Store
+    /// Two columns, for the desktop widget: usage on the left, sessions on
+    /// the right.
+    var landscape = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -24,17 +27,40 @@ struct Panel: View {
                 if let alert = o.alert ?? store.error {
                     Text(alert).font(.callout).foregroundStyle(Color.rudeRed)
                 }
-                HStack(spacing: 0) {
-                    ForEach(Array(o.limits.enumerated()), id: \.offset) { _, limit in
-                        Ring(limit: limit).frame(maxWidth: .infinity)
+                if landscape {
+                    HStack(alignment: .top, spacing: 22) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            rings(o)
+                            Divider()
+                            today(o)
+                            activity(o)
+                        }
+                        .frame(width: 330)
+                        Divider()
+                        VStack(alignment: .leading, spacing: 16) {
+                            sessions(o)
+                            Spacer(minLength: 0)
+                            if let r = o.rtk {
+                                RtkSection(rtk: r)
+                            }
+                            footer(o)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    rings(o)
+                    Divider()
+                    today(o)
+                    activity(o)
+                    Divider()
+                    sessions(o)
+                    if let r = o.rtk {
+                        Divider()
+                        RtkSection(rtk: r)
+                    }
+                    footer(o)
                 }
-                Divider()
-                today(o)
-                activity(o)
-                Divider()
-                sessions(o)
-                footer(o)
             } else if let error = store.error {
                 Text(error).font(.callout).foregroundStyle(Color.rudeRed)
             } else {
@@ -43,7 +69,7 @@ struct Panel: View {
             Signature()
         }
         .padding(18)
-        .frame(width: 400)
+        .frame(width: landscape ? 800 : 400)
         .background(Color.rudeBackground)
         .background(shortcuts)
         .onAppear { store.refresh() }
@@ -67,6 +93,7 @@ struct Panel: View {
             Button("Rafraîchir") { store.refresh(force: true) }
                 .keyboardShortcut("r")
                 .disabled(store.loading)
+            DesktopToggle()
             LaunchAtLogin()
             Divider()
             Button("Quitter rudeclaude") { NSApplication.shared.terminate(nil) }
@@ -89,6 +116,14 @@ struct Panel: View {
         }
         .opacity(0)
         .allowsHitTesting(false)
+    }
+
+    private func rings(_ o: Overview) -> some View {
+        HStack(spacing: 0) {
+            ForEach(Array(o.limits.enumerated()), id: \.offset) { _, limit in
+                Ring(limit: limit).frame(maxWidth: .infinity)
+            }
+        }
     }
 
     private func today(_ o: Overview) -> some View {
@@ -124,13 +159,15 @@ struct Panel: View {
 
     @ViewBuilder
     private func sessions(_ o: Overview) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionLabel("SESSIONS")
+        VStack(alignment: .leading, spacing: 4) {
+            SectionLabel("SESSIONS").padding(.bottom, 2)
             if o.sessions.isEmpty {
                 Text("aucune session dans l'heure").font(.callout).foregroundStyle(.secondary)
             }
             ForEach(Array(o.sessions.enumerated()), id: \.offset) { _, s in
-                SessionRow(session: s)
+                // The row's padding leaves room for its highlight while
+                // keeping the text aligned with the other sections.
+                SessionRow(session: s).padding(.horizontal, -8)
             }
         }
     }
@@ -230,41 +267,161 @@ struct Bars: View {
     }
 }
 
+/// One session, coloured like the terminal dashboard: green while Claude
+/// works, yellow when it waits for an answer, dimmed once idle.
+/// Tokens kept out of the context by rtk: today and all time on the left,
+/// the last seven days on the right.
+struct RtkSection: View {
+    let rtk: Overview.Rtk
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                SectionLabel("RTK · 7 JOURS")
+                Spacer()
+                Text("\(rtk.savings) % en moyenne").font(.caption).foregroundStyle(.secondary)
+            }
+            HStack(alignment: .bottom, spacing: 16) {
+                stat(rtk.savedToday, "économisés aujourd'hui")
+                stat(rtk.savedTotal, "au total")
+                Spacer(minLength: 0)
+                DayBars(days: rtk.days).frame(maxWidth: 140).frame(height: 52)
+            }
+        }
+        .help("\(rtk.commandsToday) commandes passées par rtk aujourd'hui")
+    }
+
+    private func stat(_ value: String, _ label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value).font(.system(size: 26, weight: .light)).fixedSize()
+            Text(label).font(.caption).foregroundStyle(.secondary).fixedSize()
+        }
+    }
+}
+
+/// One bar per day, oldest first, today in full colour.
+struct DayBars: View {
+    let days: [Overview.Rtk.Day]
+
+    var body: some View {
+        let top = max(days.map(\.saved).max() ?? 0, 1)
+        HStack(alignment: .bottom, spacing: 6) {
+            ForEach(Array(days.enumerated()), id: \.offset) { i, day in
+                let today = i == days.count - 1
+                VStack(spacing: 4) {
+                    GeometryReader { geo in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(day.saved > 0
+                                ? Color.rudeYellow.opacity(today ? 1 : 0.5)
+                                : Color.secondary.opacity(0.25))
+                            .frame(height: day.saved > 0 ? max(2, geo.size.height * day.saved / top) : 1)
+                            .frame(maxHeight: .infinity, alignment: .bottom)
+                    }
+                    Text(day.label)
+                        .font(.caption2.weight(today ? .semibold : .regular))
+                        .foregroundStyle(today ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+                }
+            }
+        }
+    }
+}
+
 struct SessionRow: View {
     let session: Overview.Session
 
+    private var working: Bool { session.state == "working" }
+    private var asking: Bool { session.state == "asking" }
+    private var idle: Bool { session.state == "idle" }
+
     private var dot: Color {
-        switch session.state {
-        case "working": .rudeGreen
-        case "asking": .rudeYellow
-        default: .secondary
-        }
+        working ? .rudeGreen : asking ? .rudeYellow : .secondary
+    }
+
+    private var doing: AnyShapeStyle {
+        asking ? AnyShapeStyle(Color.rudeYellow) : working ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Circle().fill(dot).frame(width: 7, height: 7)
-                Text(session.project).fontWeight(.medium).lineLimit(1)
-                Text(session.detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                Spacer()
-                Text(session.age).font(.caption).foregroundStyle(.secondary)
+        HStack(alignment: .top, spacing: 10) {
+            StateDot(color: dot, pulsing: working)
+                .frame(width: 10, height: 18)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(session.project).fontWeight(.medium).lineLimit(1).layoutPriority(1)
+                    Text(session.detail).font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                    Spacer(minLength: 8)
+                    Text(session.age).font(.caption).foregroundStyle(.tertiary).fixedSize()
+                }
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(session.doing).font(.callout).foregroundStyle(doing).lineLimit(1)
+                    Spacer(minLength: 8)
+                    ContextGauge(frac: session.contextFrac, label: session.context)
+                }
             }
-            HStack(spacing: 8) {
-                Text(session.doing).font(.callout).lineLimit(1)
-                Spacer()
-                Capsule()
-                    .fill(.quaternary)
-                    .overlay(alignment: .leading) {
-                        Capsule()
-                            .fill(Color.fill(session.contextFrac * 100))
-                            .frame(width: max(3, 60 * min(session.contextFrac, 1)))
-                    }
-                    .frame(width: 60, height: 3)
-                Text(session.context).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-            }
-            .padding(.leading, 13)
         }
+        .padding(.vertical, 7)
+        .padding(.horizontal, 8)
+        .background {
+            if asking {
+                RoundedRectangle(cornerRadius: 8).fill(Color.rudeYellow.opacity(0.08))
+                    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.rudeYellow.opacity(0.25)))
+            }
+        }
+        .opacity(idle ? 0.55 : 1)
+        .help("\(session.project) · \(session.detail)\n\(session.doing) · contexte \(session.context)")
+    }
+}
+
+/// The session state, with a halo that pulses while Claude works.
+struct StateDot: View {
+    let color: Color
+    let pulsing: Bool
+    @State private var expanded = false
+
+    var body: some View {
+        ZStack {
+            if pulsing {
+                Circle().fill(color.opacity(expanded ? 0 : 0.35))
+                    .frame(width: expanded ? 18 : 8, height: expanded ? 18 : 8)
+            }
+            Circle().fill(color).frame(width: 8, height: 8)
+        }
+        .onAppear {
+            guard pulsing else { return }
+            withAnimation(.easeOut(duration: 1.6).repeatForever(autoreverses: false)) { expanded = true }
+        }
+    }
+}
+
+/// Context window fill, grey until it gets close to the limit. The label
+/// has a fixed width so the gauges line up from one session to the next.
+struct ContextGauge: View {
+    let frac: Double
+    let label: String
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 6) {
+            Capsule()
+                .fill(.quaternary)
+                .overlay(alignment: .leading) {
+                    Capsule()
+                        .fill(frac >= 0.7 ? Color.fill(frac * 100) : Color.secondary)
+                        .frame(width: max(3, 56 * min(frac, 1)))
+                }
+                .frame(width: 56, height: 3)
+            Text(label).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                .frame(width: 34, alignment: .trailing)
+        }
+        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4 }
+    }
+}
+
+struct DesktopToggle: View {
+    @ObservedObject private var widget = DesktopWidget.shared
+
+    var body: some View {
+        Toggle("Widget sur le bureau", isOn: $widget.visible)
     }
 }
 

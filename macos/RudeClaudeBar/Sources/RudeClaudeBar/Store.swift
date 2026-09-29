@@ -36,8 +36,23 @@ struct Overview: Decodable {
     let activity: [Double]
     let activityNow: String
     let sessions: [Session]
+    /// Token savings from rtk, the CLI proxy; nil when it is not installed.
+    struct Rtk: Decodable {
+        struct Day: Decodable {
+            let label: String
+            let saved: Double
+        }
+
+        let savedToday: String
+        let commandsToday: Int
+        let savedTotal: String
+        let savings: Int
+        let days: [Day]
+    }
+
     let tools: [Tool]
     let credits: String?
+    let rtk: Rtk?
 }
 
 /// Runs the bundled rudeclaude binary with --json on a timer. The binary's

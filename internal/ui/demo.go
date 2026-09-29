@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/rudeops/rudeclaude/internal/activity"
+	"github.com/rudeops/rudeclaude/internal/rtk"
 	"github.com/rudeops/rudeclaude/internal/usage"
 )
 
@@ -45,4 +46,14 @@ func demoSnapshot(now time.Time) activity.Snapshot {
 			Since: now.Add(-22 * time.Minute), Context: 18_000},
 	}
 	return snap
+}
+
+func demoRtk(now time.Time) *rtk.Stats {
+	s := &rtk.Stats{Commands: 1284, Saved: 4_870_000, Savings: 91.6}
+	saved := [rtk.Days]int{61_000, 118_000, 0, 42_000, 156_000, 97_000, 38_000}
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	for i := range s.Days {
+		s.Days[i] = rtk.Day{Date: today.AddDate(0, 0, i-rtk.Days+1), Commands: saved[i] / 900, Saved: saved[i]}
+	}
+	return s
 }

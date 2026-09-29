@@ -1,11 +1,14 @@
 package ui
 
 import (
+	"context"
 	"encoding/json"
 	"io"
+	"math"
 	"time"
 
 	"github.com/rudeops/rudeclaude/internal/gfx"
+	"github.com/rudeops/rudeclaude/internal/rtk"
 )
 
 type jsonLimit struct {
@@ -36,6 +39,19 @@ type jsonTool struct {
 	Count int    `json:"count"`
 }
 
+type jsonRtkDay struct {
+	Label string  `json:"label"`
+	Saved float64 `json:"saved"`
+}
+
+type jsonRtk struct {
+	SavedToday    string       `json:"saved_today"`
+	CommandsToday int          `json:"commands_today"`
+	SavedTotal    string       `json:"saved_total"`
+	Savings       int          `json:"savings"`
+	Days          []jsonRtkDay `json:"days"`
+}
+
 type jsonOverview struct {
 	Updated     string        `json:"updated"`
 	Alert       string        `json:"alert,omitempty"`
@@ -46,6 +62,7 @@ type jsonOverview struct {
 	Sessions    []jsonSession `json:"sessions"`
 	Tools       []jsonTool    `json:"tools"`
 	Credits     string        `json:"credits,omitempty"`
+	Rtk         *jsonRtk      `json:"rtk,omitempty"`
 }
 
 var stateNames = map[gfx.SessionState]string{
@@ -89,7 +106,36 @@ func JSON(w io.Writer, interval time.Duration, demo bool) error {
 	for _, t := range o.Tools {
 		out.Tools = append(out.Tools, jsonTool(t))
 	}
+	out.Rtk = rtkStats(c.now, demo)
 	enc := json.NewEncoder(w)
 	enc.SetEscapeHTML(false)
 	return enc.Encode(out)
 }
+
+// rtkStats is nil when rtk is missing or fails: the block is optional.
+func rtkStats(now time.Time, demo bool) *jsonRtk {
+	var s *rtk.Stats
+	if demo {
+		s = demoRtk(now)
+	} else {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		s, _ = rtk.Load(ctx, now)
+	}
+	if s == nil {
+		return nil
+	}
+	today := s.Today()
+	out := &jsonRtk{
+		SavedToday:    formatTokens(float64(today.Saved)),
+		CommandsToday: today.Commands,
+		SavedTotal:    formatTokens(float64(s.Saved)),
+		Savings:       int(math.Round(s.Savings)),
+	}
+	for _, d := range s.Days {
+		out.Days = append(out.Days, jsonRtkDay{Label: weekdayInitials[d.Date.Weekday()], Saved: float64(d.Saved)})
+	}
+	return out
+}
+
+var weekdayInitials = [...]string{"D", "L", "M", "M", "J", "V", "S"}
