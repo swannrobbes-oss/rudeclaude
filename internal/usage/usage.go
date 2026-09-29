@@ -59,12 +59,16 @@ type Spend struct {
 }
 
 type Report struct {
-	Spend             *Spend  `json:"spend"`
-	FiveHour          *Window `json:"five_hour"`
-	SevenDay          *Window `json:"seven_day"`
-	SevenDayBreakdown *struct {
-		Rows []BreakdownRow `json:"rows"`
-	} `json:"seven_day_breakdown"`
+	Spend             *Spend     `json:"spend"`
+	FiveHour          *Window    `json:"five_hour"`
+	SevenDay          *Window    `json:"seven_day"`
+	SevenDayBreakdown *Breakdown `json:"seven_day_breakdown"`
+}
+
+// Breakdown splits the weekly usage between products (Claude Code, chats on
+// claude.ai and the desktop app, Cowork…), in % of that usage.
+type Breakdown struct {
+	Rows []BreakdownRow `json:"rows"`
 }
 
 type credentials struct {

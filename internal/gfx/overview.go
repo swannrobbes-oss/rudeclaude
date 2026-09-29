@@ -2,6 +2,7 @@ package gfx
 
 import (
 	"image"
+	"image/color"
 	"math"
 
 	"github.com/fogleman/gg"
@@ -79,6 +80,12 @@ type Session struct {
 	Age             string
 }
 
+// Share is one product's part of the weekly usage, in %.
+type Share struct {
+	Key, Label string
+	Percent    float64
+}
+
 type Tool struct {
 	Name  string
 	Count int
@@ -92,6 +99,7 @@ type Overview struct {
 	ActivityNow    string
 	Sessions       []Session
 	Tools          []Tool
+	Breakdown      []Share
 	Credits        string
 	Pulse          float64
 }
@@ -127,9 +135,18 @@ func RenderOverview(o Overview, opt Options) *image.RGBA {
 		text(dc, s.Label, sx, 183, regular, 13.5, textLow, 0, 0)
 	}
 
-	label(dc, "ACTIVITÉ · 60 MIN", colX, 232)
-	text(dc, o.ActivityNow, right, 232, regular, 13.5, textMid, 1, 0)
-	drawActivity(dc, colX, 248, right-colX, 50, o.Activity)
+	// The weekly breakdown takes room from the activity chart.
+	if len(o.Breakdown) > 0 {
+		label(dc, "ACTIVITÉ · 60 MIN", colX, 214)
+		text(dc, o.ActivityNow, right, 214, regular, 13.5, textMid, 1, 0)
+		drawActivity(dc, colX, 224, right-colX, 30, o.Activity)
+		label(dc, "SEMAINE PAR PRODUIT", colX, 282)
+		drawBreakdown(dc, colX, 292, right-colX, o.Breakdown)
+	} else {
+		label(dc, "ACTIVITÉ · 60 MIN", colX, 232)
+		text(dc, o.ActivityNow, right, 232, regular, 13.5, textMid, 1, 0)
+		drawActivity(dc, colX, 248, right-colX, 50, o.Activity)
+	}
 
 	dc.SetColor(border)
 	dc.SetLineWidth(1)
@@ -193,6 +210,47 @@ func drawLimit(dc *canvas, cx, cy float64, l Limit) {
 
 	text(dc, l.Label, cx, cy+r+38, medium, 11.5, textMid, 0.5, 2.2)
 	text(dc, l.Reset, cx, cy+r+60, regular, 13.5, textLow, 0.5, 0)
+}
+
+// drawBreakdown draws the weekly usage per product: a split bar, then a
+// legend.
+func drawBreakdown(dc *canvas, x, y, w float64, shares []Share) {
+	total := 0.0
+	for _, s := range shares {
+		total += s.Percent
+	}
+	const gap, h = 3.0, 6.0
+	bx := x
+	avail := w - gap*float64(len(shares)-1)
+	for _, s := range shares {
+		sw := avail * s.Percent / total
+		dc.SetColor(productColor(s.Key))
+		dc.DrawRoundedRectangle(bx, y, sw, h, math.Min(2, sw/2))
+		dc.Fill()
+		bx += sw + gap
+	}
+
+	ly := y + 27
+	lx := x
+	for _, s := range shares {
+		dc.SetColor(productColor(s.Key))
+		dc.DrawCircle(lx+4, ly-4.5, 4)
+		dc.Fill()
+		lx = text(dc, s.Label, lx+13, ly, regular, 13.5, textMid, 0, 0) + 5
+		lx = text(dc, itoa(s.Percent)+" %", lx, ly, medium, 13.5, textHi, 0, 0) + 16
+	}
+}
+
+func productColor(key string) color.Color {
+	switch key {
+	case "claude_code":
+		return yellow
+	case "chat":
+		return blue
+	case "cowork":
+		return violet
+	}
+	return textLow
 }
 
 func drawActivity(dc *canvas, x, y, w, h float64, values []float64) {

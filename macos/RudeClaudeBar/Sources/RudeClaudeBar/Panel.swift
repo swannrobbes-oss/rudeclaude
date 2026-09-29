@@ -16,8 +16,9 @@ extension Color {
 
 struct Panel: View {
     @ObservedObject var store: Store
-    /// Two columns, for the desktop widget: usage on the left, sessions on
-    /// the right.
+    /// Wide layout, for the desktop widget: fixed-size blocks paired side by
+    /// side, then the sessions across the full width, so that their number
+    /// only changes the height and never leaves a hole.
     var landscape = false
 
     var body: some View {
@@ -28,28 +29,26 @@ struct Panel: View {
                     Text(alert).font(.callout).foregroundStyle(Color.rudeRed)
                 }
                 if landscape {
-                    HStack(alignment: .top, spacing: 22) {
-                        VStack(alignment: .leading, spacing: 16) {
-                            rings(o)
-                            Divider()
-                            today(o)
-                            activity(o)
-                        }
-                        .frame(width: 330)
-                        Divider()
-                        VStack(alignment: .leading, spacing: 16) {
-                            sessions(o)
-                            Spacer(minLength: 0)
-                            if let r = o.rtk {
-                                RtkSection(rtk: r)
-                            }
-                            footer(o)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    band {
+                        rings(o)
+                    } right: {
+                        today(o)
+                        breakdown(o)
                     }
-                    .fixedSize(horizontal: false, vertical: true)
+                    Divider()
+                    band {
+                        activity(o)
+                    } right: {
+                        if let r = o.rtk {
+                            RtkSection(rtk: r)
+                        }
+                    }
+                    Divider()
+                    sessions(o)
+                    footer(o)
                 } else {
                     rings(o)
+                    breakdown(o)
                     Divider()
                     today(o)
                     activity(o)
@@ -118,11 +117,31 @@ struct Panel: View {
         .allowsHitTesting(false)
     }
 
+    /// Two blocks side by side, both vertically centred on the taller one.
+    private func band<L: View, R: View>(
+        @ViewBuilder _ left: () -> L, @ViewBuilder right: () -> R
+    ) -> some View {
+        HStack(alignment: .center, spacing: 22) {
+            VStack(alignment: .leading, spacing: 16, content: left).frame(width: 330)
+            Divider()
+            VStack(alignment: .leading, spacing: 16, content: right)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+    }
+
     private func rings(_ o: Overview) -> some View {
         HStack(spacing: 0) {
             ForEach(Array(o.limits.enumerated()), id: \.offset) { _, limit in
                 Ring(limit: limit).frame(maxWidth: .infinity)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func breakdown(_ o: Overview) -> some View {
+        if let shares = o.breakdown, !shares.isEmpty {
+            Breakdown(shares: shares)
         }
     }
 
@@ -164,10 +183,14 @@ struct Panel: View {
             if o.sessions.isEmpty {
                 Text("aucune session dans l'heure").font(.callout).foregroundStyle(.secondary)
             }
-            ForEach(Array(o.sessions.enumerated()), id: \.offset) { _, s in
-                // The row's padding leaves room for its highlight while
-                // keeping the text aligned with the other sections.
-                SessionRow(session: s).padding(.horizontal, -8)
+            // Two columns in landscape, aligned on the bands above.
+            let columns = Array(repeating: GridItem(.flexible(), spacing: 45, alignment: .top), count: landscape ? 2 : 1)
+            LazyVGrid(columns: columns, alignment: .leading, spacing: 4) {
+                ForEach(Array(o.sessions.enumerated()), id: \.offset) { _, s in
+                    // The row's padding leaves room for its highlight while
+                    // keeping the text aligned with the other sections.
+                    SessionRow(session: s).padding(.horizontal, -8)
+                }
             }
         }
     }
@@ -175,11 +198,18 @@ struct Panel: View {
     @ViewBuilder
     private func footer(_ o: Overview) -> some View {
         if !o.tools.isEmpty || o.credits != nil {
-            VStack(alignment: .leading, spacing: 4) {
+            // One line in landscape, credits on the right.
+            let layout = landscape
+                ? AnyLayout(HStackLayout(alignment: .firstTextBaseline))
+                : AnyLayout(VStackLayout(alignment: .leading, spacing: 4))
+            layout {
                 if !o.tools.isEmpty {
                     (Text("outils · 1 h   ").foregroundStyle(.secondary)
                         + Text(o.tools.map { "\($0.name) \($0.count)" }.joined(separator: "   ")))
                         .font(.caption)
+                }
+                if landscape {
+                    Spacer(minLength: 16)
                 }
                 if let credits = o.credits {
                     Text(credits).font(.caption).foregroundStyle(.secondary)
@@ -269,6 +299,50 @@ struct Bars: View {
 
 /// One session, coloured like the terminal dashboard: green while Claude
 /// works, yellow when it waits for an answer, dimmed once idle.
+extension Color {
+    /// Same product colours as the terminal (theme.ProductHex).
+    static func product(_ key: String) -> Color {
+        switch key {
+        case "claude_code": .rudeYellow
+        case "chat": Color(red: 0x60 / 255, green: 0xA5 / 255, blue: 0xFA / 255)
+        case "cowork": Color(red: 0xA7 / 255, green: 0x8B / 255, blue: 0xFA / 255)
+        default: .secondary
+        }
+    }
+}
+
+/// The weekly usage split between products, chats on claude.ai included.
+struct Breakdown: View {
+    let shares: [Overview.Share]
+
+    var body: some View {
+        let total = max(shares.reduce(0) { $0 + $1.percent }, 1)
+        VStack(alignment: .leading, spacing: 8) {
+            SectionLabel("SEMAINE PAR PRODUIT")
+            GeometryReader { geo in
+                let gap = 3.0
+                let width = geo.size.width - gap * Double(shares.count - 1)
+                HStack(spacing: gap) {
+                    ForEach(Array(shares.enumerated()), id: \.offset) { _, s in
+                        Capsule().fill(Color.product(s.key)).frame(width: max(2, width * s.percent / total))
+                    }
+                }
+            }
+            .frame(height: 6)
+            HStack(spacing: 14) {
+                ForEach(Array(shares.enumerated()), id: \.offset) { _, s in
+                    HStack(spacing: 5) {
+                        Circle().fill(Color.product(s.key)).frame(width: 7, height: 7)
+                        Text(s.label).foregroundStyle(.secondary)
+                        Text("\(Int(s.percent.rounded())) %").fontWeight(.medium)
+                    }
+                    .font(.caption)
+                }
+            }
+        }
+    }
+}
+
 /// Tokens kept out of the context by rtk: today and all time on the left,
 /// the last seven days on the right.
 struct RtkSection: View {

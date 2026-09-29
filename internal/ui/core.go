@@ -247,6 +247,38 @@ func (c *core) activityText() string {
 	return formatTokens(c.snap.Rate) + " tokens/min"
 }
 
+type shareInfo struct {
+	key, label string
+	percent    float64
+}
+
+// breakdown is the weekly usage per product, without the empty ones. The
+// API sends it next to the limits, so it covers chats on claude.ai too.
+func (c *core) breakdown() []shareInfo {
+	if c.report == nil || c.report.SevenDayBreakdown == nil {
+		return nil
+	}
+	var out []shareInfo
+	for _, r := range c.report.SevenDayBreakdown.Rows {
+		if r.Percent <= 0 {
+			continue
+		}
+		label := productNames[r.Key]
+		if label == "" {
+			label = r.DisplayName
+		}
+		out = append(out, shareInfo{key: r.Key, label: label, percent: r.Percent})
+	}
+	return out
+}
+
+var productNames = map[string]string{
+	"claude_code": "Claude Code",
+	"chat":        "Chat",
+	"cowork":      "Cowork",
+	"other":       "Autres",
+}
+
 func (c *core) credits() string {
 	if c.report == nil || c.report.Spend == nil || !c.report.Spend.Enabled || c.report.Spend.Used == nil {
 		return ""

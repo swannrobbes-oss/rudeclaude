@@ -21,6 +21,12 @@ func demoReport(now time.Time) *usage.Report {
 			Used:    &usage.Money{AmountMinor: 350, Currency: "EUR", Exponent: 2},
 			Limit:   &usage.Money{AmountMinor: 2000, Currency: "EUR", Exponent: 2},
 		},
+		SevenDayBreakdown: &usage.Breakdown{Rows: []usage.BreakdownRow{
+			{Key: "claude_code", DisplayName: "Claude Code", Percent: 58},
+			{Key: "chat", DisplayName: "Chats", Percent: 31},
+			{Key: "cowork", DisplayName: "Cowork", Percent: 11},
+			{Key: "other", DisplayName: "Other", Percent: 0},
+		}},
 	}
 }
 

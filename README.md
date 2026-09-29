@@ -34,6 +34,9 @@ l'abonnement, l'activité du jour et ce que fait Claude dans chaque session.
   jaune à l'orange à partir de 70 %, puis au rouge à partir de 90 %. Le petit
   point indique le temps écoulé dans la fenêtre : si l'arc le dépasse, la
   consommation va plus vite que le temps.
+- **Semaine par produit** : la répartition de la consommation de la semaine
+  entre Claude Code, les conversations (claude.ai, application de bureau),
+  Cowork et le reste, telle que la renvoie l'API d'usage.
 - **Aujourd'hui** : le nombre de réponses de Claude, les tokens générés et la
   part des tokens d'entrée servis par le cache.
 - **Activité** : les tokens générés minute par minute sur la dernière heure.
@@ -121,8 +124,8 @@ Le menu **⋯** en haut du panneau regroupe « Rafraîchir » (⌘R), « Widget 
 bureau », « Ouvrir au démarrage » et « Quitter » (⌘Q).
 
 « Widget sur le bureau » épingle le tableau de bord sur le bureau, en format
-paysage : anneaux, aujourd'hui et activité à gauche, sessions, RTK et outils à
-droite. Il reste au-dessus du fond d'écran et des icônes, sous toutes les autres
+paysage, en bandes : les anneaux face à la journée et à la répartition par
+produit, l'activité face à RTK, puis les sessions sur deux colonnes. Il reste au-dessus du fond d'écran et des icônes, sous toutes les autres
 fenêtres, sur tous les bureaux. Faites-le glisser où vous voulez ; sa position
 est retenue. Pour le voir quand des fenêtres le recouvrent, affichez le bureau
 (fn + F11).
@@ -180,9 +183,11 @@ projets et de vos branches.
 
 - L'API d'usage (`/api/oauth/usage`) n'est **pas documentée** par Anthropic et
   peut changer ou disparaître sans préavis.
-- Seule l'activité de Claude Code sur la machine locale est visible. Les
+- Seule l'activité de Claude Code sur la machine locale est détaillée. Les
   conversations sur claude.ai ou dans l'application de bureau comptent dans
-  les limites, mais pas dans l'activité.
+  les limites et apparaissent dans la répartition de la semaine, mais pas
+  dans l'activité ni les sessions. La fenêtre de 5 heures n'est pas répartie
+  par produit.
 - Une demande d'autorisation en attente (avant de lancer une commande) ne
   laisse pas de trace dans les journaux : la session reste affichée comme
   « exécute une commande », avec la durée écoulée au-delà de 2 minutes.

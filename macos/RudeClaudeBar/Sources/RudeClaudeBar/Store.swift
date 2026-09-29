@@ -24,6 +24,13 @@ struct Overview: Decodable {
         let age: String
     }
 
+    /// One product's part of the weekly usage (Claude Code, chats…), in %.
+    struct Share: Decodable {
+        let key: String
+        let label: String
+        let percent: Double
+    }
+
     struct Tool: Decodable {
         let name: String
         let count: Int
@@ -51,6 +58,7 @@ struct Overview: Decodable {
     }
 
     let tools: [Tool]
+    let breakdown: [Share]?
     let credits: String?
     let rtk: Rtk?
 }

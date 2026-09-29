@@ -39,6 +39,12 @@ type jsonTool struct {
 	Count int    `json:"count"`
 }
 
+type jsonShare struct {
+	Key     string  `json:"key"`
+	Label   string  `json:"label"`
+	Percent float64 `json:"percent"`
+}
+
 type jsonRtkDay struct {
 	Label string  `json:"label"`
 	Saved float64 `json:"saved"`
@@ -61,6 +67,7 @@ type jsonOverview struct {
 	ActivityNow string        `json:"activity_now"`
 	Sessions    []jsonSession `json:"sessions"`
 	Tools       []jsonTool    `json:"tools"`
+	Breakdown   []jsonShare   `json:"breakdown"`
 	Credits     string        `json:"credits,omitempty"`
 	Rtk         *jsonRtk      `json:"rtk,omitempty"`
 }
@@ -90,6 +97,7 @@ func JSON(w io.Writer, interval time.Duration, demo bool) error {
 		Credits:     o.Credits,
 		Sessions:    []jsonSession{},
 		Tools:       []jsonTool{},
+		Breakdown:   []jsonShare{},
 	}
 	for _, l := range o.Limits {
 		out.Limits = append(out.Limits, jsonLimit(l))
@@ -105,6 +113,9 @@ func JSON(w io.Writer, interval time.Duration, demo bool) error {
 	}
 	for _, t := range o.Tools {
 		out.Tools = append(out.Tools, jsonTool(t))
+	}
+	for _, s := range o.Breakdown {
+		out.Breakdown = append(out.Breakdown, jsonShare(s))
 	}
 	out.Rtk = rtkStats(c.now, demo)
 	enc := json.NewEncoder(w)

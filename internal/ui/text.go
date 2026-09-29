@@ -99,6 +99,16 @@ func (m textModel) View() string {
 			spread(labelStyle.Render(l.label)+"  "+dimStyle.Render(l.reset), boldStyle.Render(strconv.Itoa(int(math.Round(l.used))))+greyStyle.Render(" %")),
 			bar(l.used, l.elapsed), "")
 	}
+	if shares := m.breakdown(); len(shares) > 0 {
+		var legend []string
+		for _, sh := range shares {
+			legend = append(legend, style(theme.ProductHex(sh.key)).Render("●")+" "+
+				greyStyle.Render(sh.label)+" "+hiStyle.Render(strconv.Itoa(int(math.Round(sh.percent)))+" %"))
+		}
+		lines = append(lines,
+			spread(labelStyle.Render("SEMAINE PAR PRODUIT"), strings.Join(legend, "  ")),
+			splitBar(shares), "")
+	}
 
 	replies, output, cache := m.today()
 	lines = append(lines,
@@ -169,6 +179,23 @@ func bar(used, elapsed float64) string {
 			st = hiStyle
 		}
 		b.WriteString(st.Render(ch))
+	}
+	return b.String()
+}
+
+// splitBar shares the full width between products, in proportion.
+func splitBar(shares []shareInfo) string {
+	total := 0.0
+	for _, s := range shares {
+		total += s.percent
+	}
+	var b strings.Builder
+	done, acc := 0, 0.0
+	for _, s := range shares {
+		acc += s.percent
+		end := int(acc/total*textWidth + 0.5)
+		b.WriteString(style(theme.ProductHex(s.key)).Render(strings.Repeat("━", end-done)))
+		done = end
 	}
 	return b.String()
 }

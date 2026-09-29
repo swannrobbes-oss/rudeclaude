@@ -226,6 +226,9 @@ func (c *core) overview() gfx.Overview {
 	for _, t := range c.tools() {
 		o.Tools = append(o.Tools, gfx.Tool{Name: t.Name, Count: t.Count})
 	}
+	for _, s := range c.breakdown() {
+		o.Breakdown = append(o.Breakdown, gfx.Share{Key: s.key, Label: s.label, Percent: s.percent})
+	}
 	return o
 }
 
