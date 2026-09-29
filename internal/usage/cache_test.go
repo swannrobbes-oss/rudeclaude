@@ -20,7 +20,9 @@ func TestRetryAfter(t *testing.T) {
 }
 
 func TestGetUsesSharedCache(t *testing.T) {
+	// UserCacheDir reads XDG_CACHE_HOME on Linux, HOME on macOS.
 	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
 	body := []byte(`{"five_hour":{"utilization":42}}`)
 
 	saveCache(cacheFile{At: time.Now().Add(-10 * time.Second), Body: body})
